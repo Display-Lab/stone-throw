@@ -1,7 +1,9 @@
 library(here)
 library(readr)
 library(ggplot2)
+library(cowplot)
 library(viridis)
+library(RColorBrewer)
 library(scales)
 library(ggthemes)
 library(tidyr)
@@ -17,23 +19,49 @@ col_spec <- cols(
   case = col_integer(),
   d2_dr = col_integer(),
   d2_ct = col_integer(),
-  ct2_r = col_integer(),
-  cbc2_r = col_integer(),
-  inr2_r = col_integer(),
+  ct2_r = col_skip(),
+  cbc2_r = col_skip(),
+  inr2_r = col_skip(),
   d2_n = col_integer(),
-  tpa2_d = col_integer()
+  tpa2_d = col_skip()
 )
 
 file_path <- file.path( here(), 'data', 'tpa_input.csv')
 df <- read_csv( file_path, skip = 1, col_names = col_names, col_types = col_spec )
 
 ## Transform data.
+# Prepent Q to timepoint
+df_mod <- df %>% mutate(quarter=as.factor(paste0('Q',quarter)))
 # Convert category columns (all but quarter and case_ord) to 
-df_cnt <- df %>% group_by(quarter) %>% summarise_all(funs(sum(!is.na(.)))) %>% gather(evt, count, -quarter)
-df_med <- df %>% group_by(quarter) %>% summarise_all(funs(median),na.rm=T) %>% gather(evt, median, -quarter)
+df_cnt <- df_mod %>%
+  group_by(quarter) %>%
+  summarise_all(funs(sum(!is.na(.)))) %>%
+  gather(evt, count, -quarter)
+
+df_med <- df_mod %>%
+  group_by(quarter) %>%
+  summarise_all(funs(median),na.rm=T) %>%
+  gather(evt, median, -quarter)
+
 plot_data <- inner_join(df_med,df_cnt) %>% filter(evt != "case")
 
-## Plot Data
+# Rename events
+evt_lookup <- data.frame(
+  'from'=c('d2_dr','d2_ct','d2_n'), 
+  'to'=c('Door to Doctor', 'Door to Head CT', 'Door to Needle'))
+plot_data <- plot_data %>% mutate(evt=evt_lookup$to[match(evt, evt_lookup$from)])
+
+### PLOTTING
+
+## Calculate Scales
+# half the value of maxium door to needle median
+d2n_h_max <- max(plot_data$median[plot_data$evt == "Door to Needle"]) /2
+# Maximum value of remaining events * 1.1
+d2o_max <- max(plot_data$median[plot_data$evt != "Door to Needle"]) * 1.1
+# Scale max for other plots will be whichever is greater
+y_scale_max <- max(c(d2n_h_max, d2o_max))
+
+## General Plot
 plot <- ggplot(plot_data, aes(x = quarter, y = median)) +
   facet_grid(~evt, scales="free") +
   geom_col(aes(fill = evt), color="black") +
@@ -44,36 +72,73 @@ plot <- ggplot(plot_data, aes(x = quarter, y = median)) +
   ) +
   scale_fill_viridis(
     discrete = TRUE,
-    breaks = levels(plot_data$evt)
+    breaks = levels(plot_data$evt),
+    name="Event"
   )
 plot
 
-## D2N
-df_d2n <- plot_data %>% filter(evt == "d2_n")
+# Make Palrette
+pal <- c(brewer.pal(5, "Set1")[c(1,3,4,5)], brewer.pal(5, "Pastel1")[c(2,5,1,3)])
+pal <- brewer.pal(8,"Set2")
+
+## Door to Needle Plot
+df_d2n <- plot_data %>% filter(evt == "Door to Needle")
 plot_d2n <- ggplot(df_d2n, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
   scale_y_continuous(breaks=pretty_breaks()) +
-  labs(title = "Door to Needle", x = "Quarter", y = "Median Duration") +
+  labs(title = "Door to Needle", x = "Quarter", y = "Time (minutes)") +
   theme(
-    panel.grid.minor = element_blank()
+    panel.grid.minor = element_blank(),
+    legend.position = "none"
   ) +
-  scale_fill_viridis(
-    discrete = TRUE,
-    breaks = levels(plot_data$evt)
-  )
+  scale_fill_manual(values=pal[3]) 
 plot_d2n
 
-## Others
-df_other <- plot_data %>% filter(evt != "d2_n")
-plot_o <- ggplot(df_other, aes(x = quarter, y = median)) +
-  facet_grid(evt~.) +
+## Facetted other plots
+df_o <- plot_data %>% filter(evt != "Door to Needle")
+plot_o <- ggplot(df_o, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
-  scale_y_continuous(breaks=pretty_breaks()) +
-  labs(title = "Time2Event", x = "Quarter", y = "Median Duration") +
+  facet_wrap(~evt, nrow=2, scales="free_x", strip.position = 'top') +
+  scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
+  labs(x = "Quarter", y = "Time (minutes)") +
   theme(
-    panel.grid.minor = element_blank()
+    panel.grid.minor = element_blank(),
+    legend.position = "none",
+    axis.line=element_line()
   ) +
-  scale_fill_brewer(
-    breaks = levels(plot_data$evt)
-  )
+  scale_fill_brewer(palette=2) 
 plot_o
+
+## Door to Head CT
+df_ct <- plot_data %>% filter(evt == "Door to Head CT")
+plot_ct <- ggplot(df_ct, aes(x = quarter, y = median)) +
+  geom_col(aes(fill = evt), color="black") +
+  scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
+  labs(title = "Door to Head CT", x = "Quarter", y = "Time (minutes)") +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "none"
+  ) +
+  scale_fill_manual(values=pal[2]) 
+plot_ct
+
+# Door to Doctor
+df_dr <- plot_data %>% filter(evt == "Door to Doctor")
+plot_dr <- ggplot(df_dr, aes(x = quarter, y = median)) +
+  geom_col(aes(fill = evt), color="black") +
+  scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
+  labs(title = "Door to Doctor", x = "Quarter", y = "Time (minutes)") +
+  theme(
+    panel.grid.minor = element_blank(),
+    legend.position = "none"
+  ) +
+  scale_fill_manual(values=pal[3]) 
+plot_dr
+
+# Combine Plots
+# Manual combo of three plots
+ogrid <- plot_grid(plot_ct, plot_dr, nrow=2, ncol=1, rel_widths = c(1,1))
+plot_grid(plot_d2n, ogrid, nrow=1, ncol=2, rel_widths = c(1,1))
+
+# Combo of main plot and a facetted plot
+plot_grid(plot_d2n, plot_o)
