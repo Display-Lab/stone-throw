@@ -1,6 +1,7 @@
 # last known normal line plotting
 library(tidyr)
 library(ggplot2)
+library(scales)
 library(dplyr, warn.conflicts = FALSE)
 library(here)
 library(readr)
@@ -40,8 +41,9 @@ plot_data <- df1 %>%
   
 # Make a line plot
 plot <- ggplot(plot_data, aes(x = quarter, y = 100*fract, group=1)) +
-  geom_line(size=2) +
-  geom_point(size=3) +
+  geom_line() +
+  geom_point(aes(size=total)) +
+  scale_size_continuous(guide=guide_legend(title="Number\nof Cases")) +
   scale_y_continuous(breaks=pretty_breaks(), limits=c(0,100), expand=c(0,0)) +
   labs(title = "Last Known Normal Documented", x = "Time Point", y = "% of Cases Documented") 
 plot
