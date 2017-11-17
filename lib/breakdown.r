@@ -12,11 +12,12 @@ library(dplyr, warn.conflicts = FALSE)
 ## Ingest 
 # load data
 # calendar quarter, case ordinal, door2_contact, door2_ct, ct2_read, cbc2_result, inr2_result, tpa2_deliver
-col_names <- c('quarter','case','d2_dr','d2_ct','ct2_r','cbc2_r','inr2_r','d2_n','tpa2_d')
+col_names <- c('quarter','case','month','d2_dr','d2_ct','ct2_r','cbc2_r','inr2_r','d2_n','tpa2_d')
 col_spec <- cat('i','c',rep('i',7), sep='')
 col_spec <- cols(
   quarter = col_integer(),
   case = col_integer(),
+  month = col_integer(),
   d2_dr = col_integer(),
   d2_ct = col_integer(),
   ct2_r = col_skip(),
@@ -31,7 +32,16 @@ df <- read_csv( file_path, skip = 1, col_names = col_names, col_types = col_spec
 
 ## Transform data.
 # Prepent Q to timepoint
-df_mod <- df %>% mutate(quarter=as.factor(paste0('Q',quarter)))
+#df_mod <- df %>% mutate(quarter=paste0('Q',quarter))
+# lookup
+lkup <- data.frame(quarter=as.factor(c(1,2,3,4)), name=c('Q1', 'Q2', 'July-Aug', 'Sept'))
+
+df_mod <- df
+df_mod$quarter[!is.na(df_mod$month)] <- 4
+df_mod$quarter <- as.factor(df_mod$quarter)
+df_mod <- left_join(df_mod, lkup) %>% select(-month, -quarter, quarter=name)
+df_mod$quarter <- factor(df_mod$quarter,levels(df_mod$quarter)[c(2,3,1,4)])
+
 # Convert category columns (all but quarter and case_ord) to 
 df_cnt <- df_mod %>%
   group_by(quarter) %>%
@@ -86,7 +96,7 @@ df_d2n <- plot_data %>% filter(evt == "Door to Needle")
 plot_d2n <- ggplot(df_d2n, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
   scale_y_continuous(breaks=pretty_breaks()) +
-  labs(title = "Door to Needle", x = "Quarter", y = "Time (minutes)") +
+  labs(title = "Door to Needle", x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
     legend.position = "none"
@@ -100,7 +110,7 @@ plot_o <- ggplot(df_o, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
   facet_wrap(~evt, nrow=2, scales="free_x", strip.position = 'top') +
   scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
-  labs(x = "Quarter", y = "Time (minutes)") +
+  labs(x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
     legend.position = "none",
@@ -114,7 +124,7 @@ df_ct <- plot_data %>% filter(evt == "Door to Head CT")
 plot_ct <- ggplot(df_ct, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
   scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
-  labs(title = "Door to Head CT", x = "Quarter", y = "Time (minutes)") +
+  labs(title = "Door to Head CT", x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
     legend.position = "none"
@@ -127,7 +137,7 @@ df_dr <- plot_data %>% filter(evt == "Door to Doctor")
 plot_dr <- ggplot(df_dr, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
   scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
-  labs(title = "Door to Doctor", x = "Quarter", y = "Time (minutes)") +
+  labs(title = "Door to Doctor", x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
     legend.position = "none"
@@ -142,3 +152,4 @@ plot_grid(plot_d2n, ogrid, nrow=1, ncol=2, rel_widths = c(1,1))
 
 # Combo of main plot and a facetted plot
 plot_grid(plot_d2n, plot_o)
+

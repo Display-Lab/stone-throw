@@ -39,13 +39,21 @@ plot_data <- df1 %>%
   group_by(quarter, total) %>% summarize(numer=sum(count)) %>%
   mutate(fract=numer/total)
   
-# Make a line plot
+# Make a line plot with point size indicating number of cases
 plot <- ggplot(plot_data, aes(x = quarter, y = 100*fract, group=1)) +
   geom_line() +
   geom_point(aes(size=total)) +
   scale_size_continuous(guide=guide_legend(title="Number\nof Cases")) +
   scale_y_continuous(breaks=pretty_breaks(), limits=c(0,100), expand=c(0,0)) +
-  labs(title = "Last Known Normal Documented", x = "Time Point", y = "% of Cases Documented") 
+  labs(title = "Last Known Well Documented", x = "Time Point", y = "% of Cases Documented") 
+plot_pointsize
+
+# Make a line plot
+plot <- ggplot(plot_data, aes(x = quarter, y = 100*fract, group=1)) +
+  geom_line(size=2) +
+  geom_point(size=2) +
+  scale_y_continuous(breaks=pretty_breaks(), limits=c(0,100), expand=c(0,0)) +
+  labs(title = "Last Known Well Documented", x = "Time Point", y = "% of Cases Documented") 
 plot
 
 

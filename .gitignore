@@ -3,3 +3,7 @@ data/
 .Rproj.user
 *.Rproj
 .Rhistory
+
+# Report Artifacts
+*.png
+*.pdf
