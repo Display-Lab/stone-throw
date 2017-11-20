@@ -58,18 +58,18 @@ plot_data <- inner_join(df_med,df_cnt) %>% filter(evt != "case")
 # Rename events
 evt_lookup <- data.frame(
   'from'=c('d2_dr','d2_ct','d2_n'), 
-  'to'=c('Door to Doctor', 'Door to Head CT', 'Door to Needle'))
+  'to'=c('Door to Doctor', 'Door to Head CT', 'Door to Treatment'))
 plot_data <- plot_data %>% mutate(evt=evt_lookup$to[match(evt, evt_lookup$from)])
 
 ### PLOTTING
 
 ## Calculate Scales
 # half the value of maxium door to needle median
-d2n_h_max <- max(plot_data$median[plot_data$evt == "Door to Needle"]) /2
+d2rx_h_max <- max(plot_data$median[plot_data$evt == "Door to Treatment"]) /2
 # Maximum value of remaining events * 1.1
-d2o_max <- max(plot_data$median[plot_data$evt != "Door to Needle"]) * 1.1
+d2o_max <- max(plot_data$median[plot_data$evt != "Door to Treatment"]) * 1.1
 # Scale max for other plots will be whichever is greater
-y_scale_max <- max(c(d2n_h_max, d2o_max))
+y_scale_max <- max(c(d2rx_h_max, d2o_max))
 
 ## General Plot
 plot <- ggplot(plot_data, aes(x = quarter, y = median)) +
@@ -91,21 +91,21 @@ plot
 pal <- c(brewer.pal(5, "Set1")[c(1,3,4,5)], brewer.pal(5, "Pastel1")[c(2,5,1,3)])
 pal <- brewer.pal(8,"Set2")
 
-## Door to Needle Plot
-df_d2n <- plot_data %>% filter(evt == "Door to Needle")
-plot_d2n <- ggplot(df_d2n, aes(x = quarter, y = median)) +
+## Door to Treatment Plot
+df_d2rx <- plot_data %>% filter(evt == "Door to Treatment")
+plot_d2rx <- ggplot(df_d2rx, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
   scale_y_continuous(breaks=pretty_breaks()) +
-  labs(title = "Door to Needle", x = "Period", y = "Time (minutes)") +
+  labs(title = "Door to Treatment", x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
     legend.position = "none"
   ) +
   scale_fill_manual(values=pal[3]) 
-plot_d2n
+plot_d2rx
 
 ## Facetted other plots
-df_o <- plot_data %>% filter(evt != "Door to Needle")
+df_o <- plot_data %>% filter(evt != "Door to Treatment")
 plot_o <- ggplot(df_o, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
   facet_wrap(~evt, nrow=2, scales="free_x", strip.position = 'top') +
@@ -148,8 +148,8 @@ plot_dr
 # Combine Plots
 # Manual combo of three plots
 ogrid <- plot_grid(plot_ct, plot_dr, nrow=2, ncol=1, rel_widths = c(1,1))
-plot_grid(plot_d2n, ogrid, nrow=1, ncol=2, rel_widths = c(1,1))
+plot_grid(plot_d2rx, ogrid, nrow=1, ncol=2, rel_widths = c(1,1))
 
 # Combo of main plot and a facetted plot
-plot_grid(plot_d2n, plot_o)
+plot_grid(plot_d2rx, plot_o)
 
