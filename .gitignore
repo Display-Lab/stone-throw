@@ -1,5 +1,7 @@
 docs/
 data/
+input/
+
 .Rproj.user
 *.Rproj
 .Rhistory
@@ -8,3 +10,4 @@ data/
 *.png
 *.pdf
 *.svg
+*.csv
