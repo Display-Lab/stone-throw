@@ -9,15 +9,14 @@ library(ggthemes)
 library(tidyr)
 library(dplyr, warn.conflicts = FALSE)
 
-## Ingest 
 # load data
 # calendar quarter, case ordinal, door2_contact, door2_ct, ct2_read, cbc2_result, inr2_result, tpa2_deliver
-col_names <- c('quarter','case','month','d2_dr','d2_ct','ct2_r','cbc2_r','inr2_r','d2_n','tpa2_d')
+col_names <- c('month','quarter','case','d2_dr','d2_ct','ct2_r','cbc2_r','inr2_r','d2_n','tpa2_d')
 col_spec <- cat('i','c',rep('i',7), sep='')
 col_spec <- cols(
+  month = col_integer(),
   quarter = col_integer(),
   case = col_integer(),
-  month = col_integer(),
   d2_dr = col_integer(),
   d2_ct = col_integer(),
   ct2_r = col_skip(),
@@ -27,20 +26,34 @@ col_spec <- cols(
   tpa2_d = col_skip()
 )
 
-file_path <- file.path( here(), 'data', 'tpa_input.csv')
+file_path <- file.path( here(), 'input', 'tPA_case_data_processed.csv')
 df <- read_csv( file_path, skip = 1, col_names = col_names, col_types = col_spec )
 
 ## Transform data.
-# Prepent Q to timepoint
-#df_mod <- df %>% mutate(quarter=paste0('Q',quarter))
-# lookup
-lkup <- data.frame(quarter=as.factor(c(1,2,3,4)), name=c('Q1', 'Q2', 'July-Aug', 'Sept'))
 
-df_mod <- df
-df_mod$quarter[!is.na(df_mod$month)] <- 4
-df_mod$quarter <- as.factor(df_mod$quarter)
-df_mod <- left_join(df_mod, lkup) %>% select(-month, -quarter, quarter=name)
-df_mod$quarter <- factor(df_mod$quarter,levels(df_mod$quarter)[c(2,3,1,4)])
+# Make time groupings table: Most Recent Month & Previous Quarters Rolling
+time_group_table <- function(max_month, min_month){
+  months <- seq(min_month, max_month)
+  ldf <- data.frame(month=months, group=rep(NA, length(months)))
+  
+  qe <- rev(seq(from=max_month, to=min_month, by=-3))
+  qends <- qe[qe>2]
+  qlabs <- paste0(month.abb[qends], "-",month.abb[qends-2])
+  
+  labs <- unlist(lapply(qends, FUN=function(x){
+    rep(paste0(month.abb[x-2],"-",month.abb[x] ),3)
+    }))
+  ldf$group[ldf$month <= max(qends) & ldf$month >= min(qends)-2] <- labs
+  ldf
+}
+
+lkup <- time_group_table(max(df$month),min(df$month))
+
+# Apply groups (rolling quarters to data)
+df_mod <- left_join(df, lkup) %>% 
+  select(-month, -quarter, -group, quarter=group) %>%
+  filter( !is.na(quarter))
+df_mod$quarter <- factor(df_mod$quarter, levels=unique(df_mod$quarter), ordered=TRUE)
 
 # Convert category columns (all but quarter and case_ord) to 
 df_cnt <- df_mod %>%
@@ -99,6 +112,7 @@ plot_d2rx <- ggplot(df_d2rx, aes(x = quarter, y = median)) +
   labs(title = "Door to Treatment", x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle=45,hjust=1),
     legend.position = "none"
   ) +
   scale_fill_manual(values=pal[3]) 
@@ -113,6 +127,7 @@ plot_o <- ggplot(df_o, aes(x = quarter, y = median)) +
   labs(x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle=45,hjust=1),
     legend.position = "none",
     axis.line=element_line()
   ) +
@@ -127,6 +142,7 @@ plot_ct <- ggplot(df_ct, aes(x = quarter, y = median)) +
   labs(title = "Door to Head CT", x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle=45,hjust=1),
     legend.position = "none"
   ) +
   scale_fill_manual(values=pal[2]) 
@@ -140,6 +156,7 @@ plot_dr <- ggplot(df_dr, aes(x = quarter, y = median)) +
   labs(title = "Door to Doctor", x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
+    axis.text.x = element_text(angle=45,hjust=1),
     legend.position = "none"
   ) +
   scale_fill_manual(values=pal[3]) 
