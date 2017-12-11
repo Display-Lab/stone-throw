@@ -121,5 +121,5 @@ plot_o <- ggplot(df_o, aes(x = quarter, y = median)) +
 pgrid <- plot_grid(plot_d2rx, plot_o)
 
 # Write plot to file
-plot_path <- file.path(here(), "DoorToTreat.png")
+plot_path <- file.path(here(), "door_to_events.png")
 ggsave(plot_path, pgrid, device="png", width=10, height=7, units="in", dpi=72)
