@@ -168,5 +168,8 @@ ogrid <- plot_grid(plot_ct, plot_dr, nrow=2, ncol=1, rel_widths = c(1,1))
 plot_grid(plot_d2rx, ogrid, nrow=1, ncol=2, rel_widths = c(1,1))
 
 # Combo of main plot and a facetted plot
-plot_grid(plot_d2rx, plot_o)
+pgrid <- plot_grid(plot_d2rx, plot_o)
 
+# Write plot to file
+plot_path <- file.path(here(), "DoorToTreat.png")
+ggsave(plot_path, pgrid, device="png", width=10, height=7, units="in", dpi=72)
