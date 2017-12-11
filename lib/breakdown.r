@@ -84,22 +84,6 @@ d2o_max <- max(plot_data$median[plot_data$evt != "Door to Treatment"]) * 1.1
 # Scale max for other plots will be whichever is greater
 y_scale_max <- max(c(d2rx_h_max, d2o_max))
 
-## General Plot
-plot <- ggplot(plot_data, aes(x = quarter, y = median)) +
-  facet_grid(~evt, scales="free") +
-  geom_col(aes(fill = evt), color="black") +
-  scale_y_continuous(breaks=pretty_breaks()) +
-  labs(title = "Time2Event", x = "Quarter", y = "Median Duration") +
-  theme(
-    panel.grid.minor = element_blank()
-  ) +
-  scale_fill_viridis(
-    discrete = TRUE,
-    breaks = levels(plot_data$evt),
-    name="Event"
-  )
-plot
-
 # Make Palrette
 pal <- c(brewer.pal(5, "Set1")[c(1,3,4,5)], brewer.pal(5, "Pastel1")[c(2,5,1,3)])
 pal <- brewer.pal(8,"Set2")
@@ -116,7 +100,6 @@ plot_d2rx <- ggplot(df_d2rx, aes(x = quarter, y = median)) +
     legend.position = "none"
   ) +
   scale_fill_manual(values=pal[3]) 
-plot_d2rx
 
 ## Facetted other plots
 df_o <- plot_data %>% filter(evt != "Door to Treatment")
@@ -132,41 +115,8 @@ plot_o <- ggplot(df_o, aes(x = quarter, y = median)) +
     axis.line=element_line()
   ) +
   scale_fill_brewer(palette=2) 
-plot_o
-
-## Door to Head CT
-df_ct <- plot_data %>% filter(evt == "Door to Head CT")
-plot_ct <- ggplot(df_ct, aes(x = quarter, y = median)) +
-  geom_col(aes(fill = evt), color="black") +
-  scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
-  labs(title = "Door to Head CT", x = "Period", y = "Time (minutes)") +
-  theme(
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle=45,hjust=1),
-    legend.position = "none"
-  ) +
-  scale_fill_manual(values=pal[2]) 
-plot_ct
-
-# Door to Doctor
-df_dr <- plot_data %>% filter(evt == "Door to Doctor")
-plot_dr <- ggplot(df_dr, aes(x = quarter, y = median)) +
-  geom_col(aes(fill = evt), color="black") +
-  scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
-  labs(title = "Door to Doctor", x = "Period", y = "Time (minutes)") +
-  theme(
-    panel.grid.minor = element_blank(),
-    axis.text.x = element_text(angle=45,hjust=1),
-    legend.position = "none"
-  ) +
-  scale_fill_manual(values=pal[3]) 
-plot_dr
 
 # Combine Plots
-# Manual combo of three plots
-ogrid <- plot_grid(plot_ct, plot_dr, nrow=2, ncol=1, rel_widths = c(1,1))
-plot_grid(plot_d2rx, ogrid, nrow=1, ncol=2, rel_widths = c(1,1))
-
 # Combo of main plot and a facetted plot
 pgrid <- plot_grid(plot_d2rx, plot_o)
 
