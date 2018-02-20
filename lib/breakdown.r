@@ -1,21 +1,21 @@
 library(here)
 library(readr)
 library(ggplot2)
-library(cowplot)
-library(viridis)
-library(RColorBrewer)
-library(scales)
 library(ggthemes)
+library(scales)
+library(RColorBrewer)
+library(cowplot, warn.conflicts = F)
+library(viridis)
 library(tidyr)
 library(dplyr, warn.conflicts = FALSE)
+library(lubridate, warn.conflicts = FALSE)
 
 # load data
 # calendar quarter, case ordinal, door2_contact, door2_ct, ct2_read, cbc2_result, inr2_result, tpa2_deliver
-col_names <- c('month','quarter','case','d2_dr','d2_ct','ct2_r','cbc2_r','inr2_r','d2_n','tpa2_d')
-col_spec <- cat('i','c',rep('i',7), sep='')
+col_names <- c('year','month','case','d2_dr','d2_ct','ct2_r','cbc2_r','inr2_r','d2_n','tpa2_d')
 col_spec <- cols(
+  year = col_integer(),
   month = col_integer(),
-  quarter = col_integer(),
   case = col_integer(),
   d2_dr = col_integer(),
   d2_ct = col_integer(),
@@ -26,34 +26,59 @@ col_spec <- cols(
   tpa2_d = col_skip()
 )
 
-file_path <- file.path( here(), 'input', 'tPA_case_data_processed.csv')
+file_path <- file.path( here::here(), 'input', 'tPA_case_data_processed.csv')
 df <- read_csv( file_path, skip = 1, col_names = col_names, col_types = col_spec )
 
-## Transform data.
+## Add a date column
+df2 <- df %>% mutate(date=make_date(year, month))
 
-# Make time groupings table: Most Recent Month & Previous Quarters Rolling
-time_group_table <- function(max_month, min_month){
-  months <- seq(min_month, max_month)
-  ldf <- data.frame(month=months, group=rep(NA, length(months)))
-  
-  qe <- rev(seq(from=max_month, to=min_month, by=-3))
-  qends <- qe[qe>2]
-  qlabs <- paste0(month.abb[qends], "-",month.abb[qends-2])
-  
-  labs <- unlist(lapply(qends, FUN=function(x){
-    rep(paste0(month.abb[x-2],"-",month.abb[x] ),3)
-    }))
-  ldf$group[ldf$month <= max(qends) & ldf$month >= min(qends)-2] <- labs
-  ldf
+# Generate an axis label given the start and end of an interval
+label_interval <- function(start, end){
+  ys <- unique( c(year(start),year(end)) )
+  ms <- c(as.character(month(start, abbr=T, label=T)),
+          as.character(month(end, abbr=T, label=T)))
+  line_one <- paste0(ms,collapse='-')
+  line_two <- paste(ys,collapse=' ')
+  paste0(line_one,"\n",line_two)
 }
 
-lkup <- time_group_table(max(df$month),min(df$month))
+# Given vector of dates, 
+# Return table with group boundaries an labels
+time_group_table <- function(dates){
+  min_month <- floor_date(min(dates), "months")
+  max_month <- floor_date(max(dates), "months")
+  num_months <- interval(min(dates),max(dates)) %/% months(1)
+  num_groups <- floor(num_months / 3)
+  
+  #Build interval table
+  end_months <- rev(seq(max_month, by="-1 quarters", length.out = num_groups))
+  ends <- ceiling_date(end_months, unit="months") - days(1)
+  starts <- end_months %m-% months(2)
+  labels <- mapply(label_interval, starts, ends, SIMPLIFY = T)
+  
+  mm <- data.frame(start=starts, 
+                   end=ends, 
+                   quarter=c(1:length(ends)),
+                   label=labels)
+}
 
-# Apply groups (rolling quarters to data)
-df_mod <- left_join(df, lkup) %>% 
-  select(-month, -quarter, -group, quarter=group) %>%
+# Function to look up the quarter from a lookup table
+lookup <- function(d,tbl){
+  row_mask <- d >= tbl$start & d <= tbl$end
+  ifelse(any(row_mask), tbl[row_mask, 'quarter'], NA)
+}
+
+# Build lookup table
+lkup_tbl <- time_group_table(df2$date)
+
+# use lookup table to add column for tracking the quarter
+df2$quarter <- sapply(df2$date, FUN=lookup, lkup_tbl)
+
+# Remove rows that don't fall into a rolling quarter
+# Remove other date columns
+df_mod <- df2 %>%
+  select( -month, -year, -date ) %>%
   filter( !is.na(quarter))
-df_mod$quarter <- factor(df_mod$quarter, levels=unique(df_mod$quarter), ordered=TRUE)
 
 # Convert category columns (all but quarter and case_ord) to 
 df_cnt <- df_mod %>%
@@ -66,13 +91,19 @@ df_med <- df_mod %>%
   summarise_all(funs(median),na.rm=T) %>%
   gather(evt, median, -quarter)
 
-plot_data <- inner_join(df_med,df_cnt) %>% filter(evt != "case")
+pd <- inner_join(df_med,df_cnt) %>% filter(evt != "case")
 
+# Join lookup table to pull in quarter labels
 # Rename events
 evt_lookup <- data.frame(
   'from'=c('d2_dr','d2_ct','d2_n'), 
   'to'=c('Door to Doctor', 'Door to Head CT', 'Door to Treatment'))
-plot_data <- plot_data %>% mutate(evt=evt_lookup$to[match(evt, evt_lookup$from)])
+plot_data <- pd %>% 
+  left_join(lkup_tbl[,c('quarter','label')]) %>%
+  mutate(evt=evt_lookup$to[match(evt, evt_lookup$from)],
+         label=as.character(label),
+         quarter=as.factor(quarter))
+
 
 ### PLOTTING
 
@@ -92,6 +123,7 @@ pal <- brewer.pal(8,"Set2")
 df_d2rx <- plot_data %>% filter(evt == "Door to Treatment")
 plot_d2rx <- ggplot(df_d2rx, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
+  scale_x_discrete(labels=plot_data$label) +
   scale_y_continuous(breaks=pretty_breaks()) +
   labs(title = "Door to Treatment", x = "Period", y = "Time (minutes)") +
   theme(
@@ -107,12 +139,13 @@ plot_o <- ggplot(df_o, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
   facet_wrap(~evt, nrow=2, scales="free_x", strip.position = 'top') +
   scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
+  scale_x_discrete(labels=plot_data$label) +
   labs(x = "Period", y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
     axis.text.x = element_text(angle=45,hjust=1),
-    legend.position = "none",
-    axis.line=element_line()
+    axis.line=element_line(),
+    legend.position = "none"
   ) +
   scale_fill_brewer(palette=2) 
 
@@ -121,5 +154,5 @@ plot_o <- ggplot(df_o, aes(x = quarter, y = median)) +
 pgrid <- plot_grid(plot_d2rx, plot_o)
 
 # Write plot to file
-plot_path <- file.path(here(), "door_to_events.png")
+plot_path <- file.path(here::here(), "door_to_events.png")
 ggsave(plot_path, pgrid, device="png", width=10, height=7, units="in", dpi=72)
