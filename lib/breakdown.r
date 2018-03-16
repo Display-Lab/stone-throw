@@ -125,7 +125,7 @@ plot_d2rx <- ggplot(df_d2rx, aes(x = quarter, y = median)) +
   geom_col(aes(fill = evt), color="black") +
   scale_x_discrete(labels=plot_data$label) +
   scale_y_continuous(breaks=pretty_breaks()) +
-  labs(title = "Door to Treatment", x = "Period", y = "Time (minutes)") +
+  labs(title = "Door to Treatment", x = NULL, y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
     axis.text.x = element_text(angle=45,hjust=1),
@@ -140,7 +140,7 @@ plot_o <- ggplot(df_o, aes(x = quarter, y = median)) +
   facet_wrap(~evt, nrow=2, scales="free_x", strip.position = 'top') +
   scale_y_continuous(limits=c(0, y_scale_max), breaks=pretty_breaks()) +
   scale_x_discrete(labels=plot_data$label) +
-  labs(x = "Period", y = "Time (minutes)") +
+  labs(x = NULL, y = "Time (minutes)") +
   theme(
     panel.grid.minor = element_blank(),
     axis.text.x = element_text(angle=45,hjust=1),
