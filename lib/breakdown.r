@@ -74,11 +74,16 @@ lkup_tbl <- time_group_table(df2$date)
 # use lookup table to add column for tracking the quarter
 df2$quarter <- sapply(df2$date, FUN=lookup, lkup_tbl)
 
+# Calculate the lower limit of quarter to include such that most recent 4 are shown.
+calc_q_lim <- max(df2$quarter, na.rm=T) - 4
+q_low_lim <- ifelse(calc_q_lim > 0, calc_q_lim, 0)
+
 # Remove rows that don't fall into a rolling quarter
+# Remove rows outside of most recent 4 quarters (q_low_lim)
 # Remove other date columns
 df_mod <- df2 %>%
   select( -month, -year, -date ) %>%
-  filter( !is.na(quarter))
+  filter( !is.na(quarter), quarter > q_low_lim)
 
 # Convert category columns (all but quarter and case_ord) to 
 df_cnt <- df_mod %>%
