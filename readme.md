@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/99822521.svg)](https://zenodo.org/badge/latestdoi/99822521)
+
 # Stone Throw Project
 
 ## Description
