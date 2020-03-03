@@ -1,0 +1,23 @@
+<!doctype html>
+<html>
+  <!--
+  <%= htmlWebpackPlugin.options.banner %>
+  -->
+  <head>
+    <title>Stroke Ready</title>
+  </head>
+  <body>
+    <div id='getter-section'>
+      <p>Step 1: Select tPA times input file (csv).</p>
+      <input id='tPA-in' type='file' onchange='bndl.handleFiles(this.files)'>
+    </div>
+
+    <div id='output-section'></div>
+    <div id='button-section'>
+      <p>Step 2: Download Figure in PNG format.</p>
+    </div>
+
+    <script src='bundle.js'></script>
+    <script> window.onload = bndl.dbgload(); </script>
+  </body>
+</html>

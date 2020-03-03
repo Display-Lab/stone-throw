@@ -1,0 +1,38 @@
+.bar-chart {
+  background-color: #ffffff;
+}
+
+.bar {
+  stroke: #0a0a0a;
+  stroke-width: 1;
+}
+
+.bar-d2rx {
+  fill: #8da0cb;
+}
+
+.bar-d2dr {
+  fill: #e5f5f9;
+}
+
+.bar-d2ct {
+  fill: #99d8c9;
+}
+
+.title-d2rx {
+  font-size: 2em;
+  font-family: Helvetica;
+}
+
+.subtitle {
+  font-size: 1em;
+  font-family: Helvetica;
+}
+
+.subtitle-bar {
+  fill: #cccccc;
+}
+
+.axis {
+  font-family: Helvetica;
+}
